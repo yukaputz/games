@@ -1,0 +1,68 @@
+# Minimal Python
+FROM python:3.12-slim
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Python deps
+RUN pip install --no-cache-dir requests
+
+# App dir
+WORKDIR /app
+
+# Install simple CLI for HIBP (email + password checks)
+RUN printf '%s\n' \
+'#!/usr/bin/env python3' \
+'import os, sys, json, hashlib, requests, time' \
+'' \
+'UA = os.environ.get("HIBP_USER_AGENT", "hibp-docker-cli/1.0")' \
+'KEY = os.environ.get("HIBP_API_KEY")' \
+'' \
+'def die(msg, code=1):' \
+'    print(msg, file=sys.stderr); sys.exit(code)' \
+'' \
+'def hibp_email(account):' \
+'    if not KEY: die("Set HIBP_API_KEY env var for email lookups.")' \
+'    url = f"https://haveibeenpwned.com/api/v3/breachedaccount/{account}"' \
+'    headers = {"hibp-api-key": KEY, "user-agent": UA}' \
+'    params = {"truncateResponse": "false"}' \
+'    r = requests.get(url, headers=headers, params=params)' \
+'    if r.status_code == 404: print("[]"); return' \
+'    if r.status_code == 429: die("Rate limited by HIBP (HTTP 429). Retry later.")' \
+'    r.raise_for_status(); print(json.dumps(r.json(), indent=2))' \
+'' \
+'def hibp_password(pw):' \
+'    sha = hashlib.sha1(pw.encode("utf-8")).hexdigest().upper()' \
+'    prefix, suffix = sha[:5], sha[5:]' \
+'    url = f"https://api.pwnedpasswords.com/range/{prefix}"' \
+'    r = requests.get(url, headers={"user-agent": UA})' \
+'    r.raise_for_status()' \
+'    count = 0' \
+'    for line in r.text.splitlines():' \
+'        s, c = line.split(":")' \
+'        if s == suffix: count = int(c); break' \
+'    print(json.dumps({"pwned": count>0, "count": count}))' \
+'' \
+'def main():' \
+'    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):' \
+'        print("Usage:\\n  hibp email <address>\\n  hibp password <password>")' \
+'        sys.exit(0)' \
+'    cmd = sys.argv[1]' \
+'    if cmd == "email":' \
+'        if len(sys.argv) != 3: die("Usage: hibp email <address>")' \
+'        hibp_email(sys.argv[2])' \
+'    elif cmd == "password":' \
+'        if len(sys.argv) != 3: die("Usage: hibp password <password>")' \
+'        hibp_password(sys.argv[2])' \
+'    else:' \
+'        die("Unknown command. Use: email | password")' \
+'' \
+'if __name__ == "__main__": main()' \
+> /app/hibp.py && chmod +x /app/hibp.py
+
+# Friendly alias
+RUN ln -s /app/hibp.py /usr/local/bin/hibp
+
+ENTRYPOINT ["hibp"]

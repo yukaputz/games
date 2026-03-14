@@ -1,0 +1,24 @@
+# Lightweight Python base
+FROM python:3.12-slim
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Non-root user
+RUN useradd -m appuser
+WORKDIR /opt/linkedin2username
+
+# Clone the tool
+RUN git clone https://github.com/initstring/linkedin2username.git . 
+
+# Python deps
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Work dir for outputs
+WORKDIR /work
+USER appuser
+
+# Default entrypoint -> show help if no args
+ENTRYPOINT ["python3", "/opt/linkedin2username/linkedin2username.py"]

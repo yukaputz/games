@@ -1,0 +1,39 @@
+###############################################
+# OPEN-SOURCE RECON & OSINT TOOLBOX (REFERENCE)
+###############################################
+
+🧭 Frameworks & Aggregators
+- Datasploit – Passive reconnaissance framework
+- OSINT Framework – Curated collection/directory
+- Recon-ng – Modular web reconnaissance framework
+- SpiderFoot OSS – Automated scanning of many sources
+
+📧 Email, People & Org
+- Holehe – Check if emails exist on services
+- LittleBrother – People search (email, phone, username)
+- LinkedIn2Username – Generate usernames from LinkedIn
+- LittleSis – People/organization relationship mapping
+
+👤 Username & Social
+- Maigret – Username search across platforms
+- Sherlock – Username hunt across networks
+- WhatsMyName – Username search across platforms
+- Socialscan – Check username/email availability
+- SocialAnalyzer – Profile discovery across social networks
+
+🧑‍💻 Platform-Specific OSINT
+- GHunt – Google account OSINT
+- OSINTgram – Instagram OSINT tool
+
+📱 Phone Number OSINT
+- PhoneInfoga – Phone number intelligence gathering
+
+🌐 Web, Search & Content Recon
+- theHarvester – Collect emails, hosts, subdomains, banners
+- Photon – Web crawler/OSINT collector
+- GoogleDorks – Query crafting for search recon
+
+🔑 Breach & Credential Hunting
+- h8mail – OSINT for breached credentials
+- HavePwned – HaveIBeenPwned queries
+- Dehashed – Query dehashed.com

@@ -1,0 +1,25 @@
+# Social Analyzer — Web UI
+FROM node:20-bullseye-slim
+
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=9005
+
+# TLS root CAs + git + Firefox ESR + Tesseract (per project docs)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates git firefox-esr tesseract-ocr && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+# Clone the repo
+RUN git clone --depth=1 https://github.com/qeeqbox/social-analyzer.git .
+
+# Install Node deps (include dev deps — some start scripts rely on them)
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+EXPOSE 9005
+# Start the Node app; open /app.html
+CMD ["npm", "start"]
+

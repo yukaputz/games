@@ -1,0 +1,46 @@
+# Minimal image with Python
+FROM python:3.12-slim
+
+# Install small deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates jq bash \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install googler (CLI Google search)
+RUN pip install --no-cache-dir googler
+
+# Working dir for mounting dorks files/results
+WORKDIR /work
+
+# Tiny runner script
+RUN printf '%s\n' \
+'#!/usr/bin/env bash' \
+'set -euo pipefail' \
+'RESULTS="${RESULTS:-50}"  # results per query (default 50)' \
+'DELAY="${DELAY:-2}"       # seconds between queries when using a file' \
+'' \
+'usage(){' \
+'  echo "Usage:"' \
+'  echo "  run-dork \"site:example.com inurl:admin\"   # single query"' \
+'  echo "  run-dork --file dorks.txt                  # run multiple queries (one per line)"' \
+'  echo "Env: RESULTS=<n> DELAY=<sec>"' \
+'}' \
+'' \
+'if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then usage; exit 0; fi' \
+'' \
+'if [[ "${1:-}" == "--file" ]]; then' \
+'  [[ $# -ge 2 ]] || { echo "Missing file path"; usage; exit 1; }' \
+'  FILE="$2"; [[ -f "$FILE" ]] || { echo "File not found: $FILE"; exit 1; }' \
+'  while IFS= read -r Q; do' \
+'    [[ -z "${Q// }" || "${Q:0:1}" == "#" ]] && continue' \
+'    echo "=== Query: $Q"' \
+'    googler -n "$RESULTS" --np -C --json "$Q" | jq -r ".[].url" || true' \
+'    sleep "$DELAY"' \
+'  done < "$FILE"' \
+'else' \
+'  [[ $# -ge 1 ]] || { usage; exit 1; }' \
+'  googler -n "$RESULTS" --np -C --json "$*" | jq -r ".[].url"' \
+'fi' \
+> /usr/local/bin/run-dork && chmod +x /usr/local/bin/run-dork
+
+ENTRYPOINT ["run-dork"]

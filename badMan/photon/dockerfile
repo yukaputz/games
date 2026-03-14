@@ -1,0 +1,26 @@
+# Dockerfile
+FROM python:3.12-slim
+
+ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
+
+# System deps + clone Photon
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git ca-certificates && \
+    git clone https://github.com/s0md3v/Photon.git /opt/photon && \
+    apt-get purge -y git && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/photon
+
+# Python deps
+RUN python -m pip install --upgrade pip && \
+    if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+# Non-root user + writable output dir
+RUN useradd -m app && mkdir -p /data && chown -R app:app /opt/photon /data
+USER app
+
+VOLUME ["/data"]
+
+# Keep entrypoint simple; args (e.g., -u, -l, -t) pass through
+ENTRYPOINT ["python3", "photon.py"]

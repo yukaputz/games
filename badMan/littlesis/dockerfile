@@ -1,0 +1,65 @@
+# app/Dockerfile
+FROM ruby:3.3-bookworm
+
+# Where the app will live in the image
+ENV APP_HOME=/app
+WORKDIR $APP_HOME
+
+# -------- System dependencies --------
+# pg headers (libpq-dev), compiler toolchain, git, curl, Node.js + npm
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      libpq-dev \
+      git \
+      curl \
+      ca-certificates \
+      nodejs \
+      npm && \
+    rm -rf /var/lib/apt/lists/*
+
+# Optional: Yarn (since Debian's Node via apt doesn't include Corepack)
+# Safe even if you only use npm.
+RUN npm install -g yarn
+
+# -------- Ruby gems (layer-cached) --------
+# Copy only Gem files first to leverage Docker layer caching
+COPY Gemfile Gemfile.lock ./
+RUN gem install bundler && \
+    bundle config set without 'development test' && \
+    bundle install --jobs 4
+
+# -------- JS dependencies (layer-cached) --------
+# Copy lockfiles first to cache JS installs
+COPY package.json package-lock.json* yarn.lock* ./
+RUN if [ -f package.json ]; then \
+      if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+      elif [ -f package-lock.json ]; then npm ci; \
+      else npm install; fi; \
+    fi
+
+# -------- App source --------
+COPY . .
+
+# -------- Runtime defaults --------
+# Default to development; override in compose if needed
+ENV RAILS_ENV=development \
+    RACK_ENV=development
+
+# Create runtime dirs now (will be re-created at container start too)
+RUN mkdir -p tmp tmp/pids tmp/sockets log
+
+# If you later want to precompile assets in production builds, uncomment:
+# ARG SECRET_KEY_BASE=dummy
+# ENV SECRET_KEY_BASE=${SECRET_KEY_BASE}
+# RUN bundle exec rake assets:precompile
+
+EXPOSE 3000
+
+# Safer startup: ensure tmp exists, clear stale pids, bind Puma to TCP
+# You can override this in docker-compose.yml with your own `command:` if desired.
+CMD ["/bin/bash","-lc", "\
+  mkdir -p tmp tmp/pids tmp/sockets log && \
+  rm -f tmp/puma.pid tmp/pids/server.pid && \
+  bundle exec puma -e ${RAILS_ENV} -p 3000 --pidfile tmp/puma.pid --bind tcp://0.0.0.0:3000 \
+"]

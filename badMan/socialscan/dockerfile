@@ -1,0 +1,15 @@
+# Lightweight Python base
+FROM python:3.12-slim
+
+# Create non-root user for safety
+RUN useradd -m appuser
+
+# Install socialscan from PyPI
+RUN pip install --no-cache-dir socialscan
+
+# Workdir for mounting input/output files
+WORKDIR /work
+USER appuser
+
+# Default entrypoint
+ENTRYPOINT ["socialscan"]

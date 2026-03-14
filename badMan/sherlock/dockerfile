@@ -1,0 +1,30 @@
+# Dockerfile for Sherlock (OSINT)
+FROM python:3.12-slim
+
+# Keep image small and reliable
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 10001 app
+USER app
+
+# Get Sherlock
+WORKDIR /opt/sherlock
+# Pin to a branch/commit if you want reproducible builds:
+# ARG SHERLOCK_REF=master
+# RUN git clone --depth=1 --branch "${SHERLOCK_REF}" https://github.com/sherlock-project/sherlock.git .
+RUN git clone --depth=1 https://github.com/sherlock-project/sherlock.git . 
+
+# Python deps
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Default to showing help if no args given
+ENTRYPOINT ["python", "sherlock.py"]
+CMD ["--help"]

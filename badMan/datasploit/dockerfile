@@ -1,0 +1,22 @@
+# Use a lightweight Python base image
+FROM python:3.12-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    python3-dev \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Working directory
+WORKDIR /opt/datasploit
+
+# Clone DataSploit
+RUN git clone https://github.com/DataSploit/datasploit.git .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Default entrypoint
+ENTRYPOINT ["python3", "datasploit.py"]

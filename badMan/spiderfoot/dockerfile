@@ -1,0 +1,57 @@
+# Dockerfile — SpiderFoot
+# Build:  docker build -t osint-spiderfoot .
+# Run:    docker run -it --rm -p 5001:5001 -v spiderfoot-data:/home/spiderfoot/.spiderfoot osint-spiderfoot
+
+FROM python:3.12-slim
+
+ARG SPIDERFOOT_REF=master
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    SF_BINDIP=0.0.0.0 \
+    SF_PORT=5001
+
+# System deps
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git ca-certificates build-essential libffi-dev libssl-dev libxml2-dev \
+    libxslt1-dev libjpeg62-turbo-dev zlib1g-dev libmagic1 gosu \
+ && rm -rf /var/lib/apt/lists/*
+
+# Create unprivileged user
+RUN useradd -ms /bin/bash spiderfoot
+
+# Fetch SpiderFoot source
+USER spiderfoot
+WORKDIR /home/spiderfoot
+RUN git clone https://github.com/smicallef/spiderfoot.git /home/spiderfoot/spiderfoot \
+ && cd /home/spiderfoot/spiderfoot \
+ && git fetch --all --tags --prune \
+ && git checkout ${SPIDERFOOT_REF}
+
+# Python deps
+WORKDIR /home/spiderfoot/spiderfoot
+RUN pip install --no-cache-dir --upgrade pip \
+ && if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+
+# Persist state (db, caches, logs, API keys) under ~/.spiderfoot
+VOLUME ["/home/spiderfoot/.spiderfoot"]
+
+EXPOSE 5001
+
+# Healthcheck: probe the web UI
+HEALTHCHECK --interval=30s --timeout=5s --retries=10 \
+  CMD ["python3", "-c", "import os,sys,urllib.request; u='http://%s:%s/'%(os.environ.get('SF_BINDIP','0.0.0.0'), os.environ.get('SF_PORT','5001')); urllib.request.urlopen(u, timeout=3); sys.exit(0)"]
+
+# Entrypoint: fix volume permissions then drop to 'spiderfoot'
+USER root
+RUN printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -e' \
+  'mkdir -p /home/spiderfoot/.spiderfoot/logs' \
+  'chown -R spiderfoot:spiderfoot /home/spiderfoot/.spiderfoot || true' \
+  'cd /home/spiderfoot/spiderfoot' \
+  'exec gosu spiderfoot "$@"' \
+  > /usr/local/bin/spiderfoot-entrypoint && chmod +x /usr/local/bin/spiderfoot-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/spiderfoot-entrypoint"]
+CMD ["python3", "sf.py", "-l", "0.0.0.0:5001"]

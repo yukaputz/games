@@ -1,0 +1,28 @@
+# ---- Build the web client (Node/Yarn) ----
+FROM node:20-alpine AS client_builder
+WORKDIR /app
+RUN apk add --no-cache git
+RUN git clone https://github.com/sundowndev/phoneinfoga.git .
+
+# Use the Yarn that ships with Node (via Corepack). No global install needed.
+# If you want to be explicit, you can uncomment the "corepack" lines.
+# RUN corepack enable && corepack prepare yarn@stable --activate
+RUN cd web/client && yarn install --frozen-lockfile && yarn build
+
+# ---- Build the Go server/binary ----
+FROM golang:1.22-alpine AS go_builder
+WORKDIR /app
+RUN apk add --no-cache git make bash build-base
+RUN git clone https://github.com/sundowndev/phoneinfoga.git .
+# Bring the prebuilt client into the repo tree so it's embedded into the binary
+COPY --from=client_builder /app/web/client/dist ./web/client/dist
+# Build tools + binary (outputs to ./bin/phoneinfoga)
+RUN make install-tools && make build
+
+# ---- Minimal runtime image ----
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates
+COPY --from=go_builder /app/bin/phoneinfoga /usr/local/bin/phoneinfoga
+EXPOSE 5000
+ENTRYPOINT ["phoneinfoga"]
+CMD ["--help"]

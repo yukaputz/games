@@ -1,0 +1,18 @@
+# Use Nginx to serve static files
+FROM nginx:alpine
+
+# Working directory inside container
+WORKDIR /usr/share/nginx/html
+
+# Remove default nginx page
+RUN rm -rf ./*
+
+# Clone OSINT Framework
+RUN apk add --no-cache git && \
+    git clone https://github.com/lockfale/osint-framework.git . && \
+    rm -rf .git
+
+# Expose Nginx port
+EXPOSE 80
+
+# Nginx already has default CMD

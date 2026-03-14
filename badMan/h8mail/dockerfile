@@ -1,0 +1,18 @@
+# Lightweight Python base
+FROM python:3.12-slim
+
+# System deps (SSL certs, CA bundle)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user & workspace
+RUN useradd -m appuser
+WORKDIR /work
+USER appuser
+
+# Install h8mail from PyPI
+RUN pip install --no-cache-dir h8mail
+
+# Default entrypoint (CLI)
+ENTRYPOINT ["h8mail"]

@@ -1,0 +1,8 @@
+services:
+  app:
+    # ...
+    volumes:
+      - .:/app
+      - app-tmp:/app/tmp
+volumes:
+  app-tmp:

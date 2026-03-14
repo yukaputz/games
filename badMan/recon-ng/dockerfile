@@ -1,0 +1,30 @@
+# Dockerfile — recon-ng
+FROM python:3.12-slim
+
+# System deps (git to clone; build tools for any wheels)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git ca-certificates build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+# Get recon-ng
+WORKDIR /opt
+RUN git clone --depth=1 https://github.com/lanmaster53/recon-ng.git
+
+# Python deps
+WORKDIR /opt/recon-ng
+RUN pip install --no-cache-dir -r REQUIREMENTS
+
+# Create a non-root user and a writable home for workspace/history
+RUN useradd -m -u 1000 recon && \
+    mkdir -p /home/recon/.recon-ng /data && \
+    chown -R recon:recon /home/recon /data /opt/recon-ng
+
+USER recon
+WORKDIR /home/recon
+
+# Where recon-ng will store workspaces by default; mount this as a volume if you like
+VOLUME ["/home/recon/.recon-ng", "/data"]
+
+# Make 'recon-ng' the default command
+ENTRYPOINT ["python3", "/opt/recon-ng/recon-ng"]
